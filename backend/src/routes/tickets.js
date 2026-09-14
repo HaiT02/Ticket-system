@@ -83,6 +83,12 @@ router.post("/use", (req, res) => {
   });
 });
 
+// Explicit reset action for the entire list.
+router.delete("/", (req, res) => {
+  const result = db.prepare("DELETE FROM tickets").run();
+  res.status(200).json({ deletedCount: result.changes });
+});
+
 router.delete("/:code", (req, res) => {
   const code = normalizeCode(req.params.code);
   if (!code) return res.status(400).json({ error: "Enter a six-character ticket code" });
@@ -97,9 +103,9 @@ router.delete("/:code", (req, res) => {
     });
   }
 
-  if (ticket.used === 1) {
+  if (ticket.used === 1 && req.body?.confirmUsed !== true) {
     return res.status(400).json({
-      error: "Used tickets cannot be deleted"
+      error: "Confirm deletion of the used ticket"
     });
   }
 
@@ -120,7 +126,7 @@ router.get("/", (req, res) => {
       created_at,
       used
     FROM tickets
-    ORDER BY id ASC
+    ORDER BY used ASC, id ASC
   `).all();
 
   const formattedTickets = tickets.map((ticket) => ({

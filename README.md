@@ -9,10 +9,16 @@ och Express samt en lokal SQLite-databas som hanteras med `better-sqlite3`.
 - Skapa en biljett med en slumpmässig, sex tecken lång kod.
 - Använd en biljett genom att skriva in koden och trycka Enter eller klicka på Använd.
 - Ta bort en biljett som ännu inte har använts.
+- Ta bort en använd biljett med den lilla Ta bort-knappen efter bekräftelse.
 - Lista biljetter och se deras status: gul för oanvänd och grön för använd.
+- Oanvända biljetter visas först och använda sist, med äldst först inom varje grupp.
+- Rensa alla biljetter via knappen i listan och bekräfta borttagningen.
 
-Backend kontrollerar att en biljett bara kan användas en gång och att använda
-biljetter inte kan raderas. Biljetterna sparas i databasen och finns kvar när
+Backend kontrollerar att en biljett bara kan användas en gång. En använd biljett
+kan raderas enskilt om anropet innehåller `confirmUsed: true`; gränssnittet frågar
+efter bekräftelse innan det skickas. Den separata funktionen "Rensa alla biljetter"
+återställer hela listan och tar även bort använda biljetter permanent.
+Biljetterna sparas i databasen och finns kvar när
 servern startas om.
 
 ## Kom igång
@@ -90,7 +96,8 @@ parametriserade SQL-frågor för att läsa och uppdatera biljetter.
 | GET | /api/tickets | Lista biljetter |
 | POST | /api/tickets | Skapa biljett |
 | POST | /api/tickets/use | Använd biljett, JSON: `{ "code": "ABC123" }` |
-| DELETE | /api/tickets/:code | Ta bort oanvänd biljett |
+| DELETE | /api/tickets/:code | Ta bort biljett; använd kräver JSON `{ "confirmUsed": true }` |
+| DELETE | /api/tickets | Rensa alla biljetter, inklusive använda |
 
 `frontend/src/api/ticketsApi.js` hanterar HTTP-anrop och API-fel.
 `App.jsx` hanterar gränssnitt och tillstånd. Backend separerar serverstart
@@ -103,7 +110,8 @@ Använd den adressen när du öppnar frontend. Om frontend körs på en annan ad
 behöver backend startas med miljövariabeln `FRONTEND_ORIGIN` satt till den adressen.
 Frontend kan använda en annan API-adress via `VITE_API_URL` (inklusive `/api`).
 Projektet saknar inloggning: alla som når API:t kan skapa och använda biljetter
-och ta bort oanvända biljetter. Backend nekar radering av använda biljetter.
+och ta bort oanvända biljetter eller rensa hela listan. Backend nekar enskild
+radering av använda biljetter utan bekräftelseflagga. Bekräftelsen för att rensa finns i gränssnittet.
 CORS är inte behörighetskontroll.
 
 ## Tester och kontroller

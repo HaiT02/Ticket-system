@@ -69,14 +69,33 @@ function App() {
     }
   }
 
-  async function deleteTicket(ticketCode) {
+  async function deleteTicket(ticketCode, used = false) {
     if (actionInProgress.current) return;
+    if (used && !window.confirm(`Ta bort den använda biljetten ${ticketCode} permanent?`)) return;
     actionInProgress.current = true;
     setBusy(true);
     try {
-      await ticketsApi.deleteTicket(ticketCode);
+      await ticketsApi.deleteTicket(ticketCode, used);
 
       setMessage(`Biljett ${ticketCode} har tagits bort.`);
+      await loadTickets();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      actionInProgress.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function clearTickets() {
+    if (actionInProgress.current || tickets.length === 0) return;
+    if (!window.confirm("Vill du rensa alla biljetter? Både använda och oanvända biljetter tas bort permanent.")) return;
+    actionInProgress.current = true;
+    setBusy(true);
+    try {
+      await ticketsApi.clearTickets();
+      setCode("");
+      setMessage("Alla biljetter har rensats.");
       await loadTickets();
     } catch (error) {
       setMessage(error.message);
@@ -128,7 +147,7 @@ function App() {
             onChange={(event) => setCode(event.target.value)}
           />
 
-          <button type="submit" disabled={busy || loading}>
+          <button type="submit" className="use-button" disabled={busy || loading}>
             Använd
           </button>
         </div>
@@ -144,7 +163,20 @@ function App() {
       )}
 
       <section className="card">
-        <h2>Alla biljetter</h2>
+        <div className="list-heading">
+          <div>
+            <h2>Alla biljetter</h2>
+            <p className="hint">Oanvända först, använda sist.</p>
+          </div>
+          <button
+            type="button"
+            className="delete-button"
+            onClick={clearTickets}
+            disabled={busy || loading || tickets.length === 0}
+          >
+            Rensa alla biljetter
+          </button>
+        </div>
 
         {loading ? <p role="status">Hämtar biljetter…</p> : tickets.length === 0 ? (
           <p>Inga biljetter finns.</p>
@@ -167,7 +199,16 @@ function App() {
                   </p>
                 </div>
 
-                {!ticket.used && (
+                {ticket.used ? (
+                  <button
+                    type="button"
+                    className="delete-button delete-button-small"
+                    disabled={busy}
+                    onClick={() => deleteTicket(ticket.code, true)}
+                  >
+                    Ta bort
+                  </button>
+                ) : (
                   <div className="ticket-actions">
                   <button
                     type="button"

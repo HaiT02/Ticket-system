@@ -36,6 +36,15 @@ export function useTicket(code) {
   });
 }
 
-export function deleteTicket(code) {
-  return request(`/tickets/${encodeURIComponent(code)}`, { method: "DELETE" });
+export function deleteTicket(code, confirmUsed = false) {
+  const options = { method: "DELETE" };
+  if (confirmUsed) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify({ confirmUsed: true });
+  }
+  return request(`/tickets/${encodeURIComponent(code)}`, options);
+}
+
+export function clearTickets() {
+  return request("/tickets", { method: "DELETE" });
 }

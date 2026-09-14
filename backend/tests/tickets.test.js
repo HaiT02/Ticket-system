@@ -134,7 +134,7 @@ describe("Tickets API", () => {
     expect(deleteResponse.status).toBe(200);
   });
 
-  it("should not allow a used ticket to be deleted", async () => {
+  it("should require explicit confirmation to delete a used ticket", async () => {
     const createResponse = await request(app)
       .post("/api/tickets")
       .send();
@@ -151,6 +151,10 @@ describe("Tickets API", () => {
       .delete(`/api/tickets/${code}`);
 
     expect(deleteResponse.status).toBe(400);
+    const confirmed = await request(app).delete(`/api/tickets/${code}`)
+      .send({ confirmUsed: true });
+    expect(confirmed.status).toBe(200);
+    expect((await request(app).get("/api/tickets")).body).toEqual([]);
   });
 
   it("should list all tickets with their used status", async () => {
@@ -171,6 +175,9 @@ describe("Tickets API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(2);
+    expect(response.body.map((ticket) => ticket.code)).toEqual([
+      secondTicket.body.code, firstTicket.body.code,
+    ]);
 
     const usedTicket = response.body.find(
       (ticket) => ticket.code === firstTicket.body.code
@@ -182,5 +189,16 @@ describe("Tickets API", () => {
 
     expect(usedTicket.used).toBe(true);
     expect(unusedTicket.used).toBe(false);
+  });
+
+  it("should clear both used and unused tickets and allow clearing an empty list", async () => {
+    const first = await request(app).post("/api/tickets");
+    await request(app).post("/api/tickets");
+    await request(app).post("/api/tickets/use").send({ code: first.body.code });
+    const cleared = await request(app).delete("/api/tickets");
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.deletedCount).toBe(2);
+    expect((await request(app).get("/api/tickets")).body).toEqual([]);
+    expect((await request(app).delete("/api/tickets")).body.deletedCount).toBe(0);
   });
 });

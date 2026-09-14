@@ -18,6 +18,9 @@ input::placeholder { color: #a999a1; letter-spacing: 0; }
 .hint { font-size: 12px; line-height: 1.6; color: #b9a9ae; margin: 12px 0 0; }
 .message { padding: 18px 22px; margin-bottom: 24px; background: #352c20; border: 1px solid #a8854f; border-radius: 8px; color: #ffe0a7; }
 .tickets { display: grid; gap: 16px; }
+.list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.list-heading h2 { margin-bottom: 8px; }
+.list-heading .hint { margin: 0; }
 .ticket { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px; border: 1px solid #80674b; border-left: 5px solid #dcb777; border-radius: 8px; background: #2b2323; }
 .ticket-label { display: block; font-size: 10px; letter-spacing: 3px; color: #d8b780; margin-bottom: 12px; }
 .ticket strong { display: block; font-family: monospace; font-size: 26px; letter-spacing: 4px; color: #ffe1ad; }
@@ -27,8 +30,9 @@ input::placeholder { color: #a999a1; letter-spacing: 0; }
 .ticket-used .ticket-label { color: #83dca7; }
 .ticket-used p { color: #c1dfcd; }
 .ticket-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.use-button { background: #78dba2; color: #10291c; border-color: #78dba2; }
-.use-button:hover { background: #a0efbf; border-color: #a0efbf; }
+.use-button { background: transparent; color: #a0efbf; border-color: #488866; border-style: dashed; }
+.use-button:hover { background: #244632; }
+.delete-button-small { padding: 6px 12px; font-size: 12px; min-height: 36px; }
 .delete-button { background: transparent; color: #f2c1bf; border-color: #875156; border-style: dashed; }
 .delete-button:hover { background: #542b33; }
 footer { text-align: center; color: #b6a4aa; padding: 12px 0 24px; font-size: 12px; letter-spacing: 1px; }

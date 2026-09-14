@@ -5,6 +5,7 @@ import App from "./App";
 
 describe("Ticket system", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -58,6 +59,40 @@ describe("Ticket system", () => {
         });
       })
     );
+  });
+
+  it.each([true, false])("should clear tickets only after confirmation: %s", async (confirmed) => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(confirmed);
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => [
+      { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: true },
+    ] });
+    render(<App />);
+    await screen.findByText("ABC123");
+    await user.click(screen.getByRole("button", { name: "Rensa alla biljetter" }));
+    expect(confirm).toHaveBeenCalledOnce();
+    if (confirmed) {
+      expect(fetch).toHaveBeenCalledWith("http://localhost:3000/api/tickets", { method: "DELETE" });
+      expect(await screen.findByText("Inga biljetter finns.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Rensa alla biljetter" })).toBeDisabled();
+    } else {
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("ABC123")).toBeInTheDocument();
+    }
+  });
+
+  it("should keep tickets when clearing fails", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => [
+      { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: false },
+    ] }).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<App />);
+    await screen.findByText("ABC123");
+    await user.click(screen.getByRole("button", { name: "Rensa alla biljetter" }));
+    expect(await screen.findByText("Kunde inte ansluta till servern.")).toBeInTheDocument();
+    expect(screen.getByText("ABC123")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rensa alla biljetter" })).toBeEnabled();
   });
 
   it("should display the ticket system heading", async () => {
@@ -180,8 +215,31 @@ describe("Ticket system", () => {
     });
     expect(await within(card).findByText("Status: Använd")).toBeInTheDocument();
     expect(card).toHaveClass("ticket-used");
-    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Använd" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Ta bort" })).toBeInTheDocument();
     expect(screen.getByLabelText("Biljettkod")).toHaveValue("OTHER1");
+  });
+
+  it.each([true, false])("should require confirmation to delete a used ticket: %s", async (confirmed) => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(confirmed);
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => [
+      { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: true },
+    ] });
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Ta bort" }));
+    expect(confirm).toHaveBeenCalledWith("Ta bort den använda biljetten ABC123 permanent?");
+    if (confirmed) {
+      expect(fetch).toHaveBeenCalledWith("http://localhost:3000/api/tickets/ABC123", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmUsed: true }),
+      });
+      expect(await screen.findByText("Inga biljetter finns.")).toBeInTheDocument();
+    } else {
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("ABC123")).toBeInTheDocument();
+    }
   });
 
   it("should delete an unused ticket and refresh the list", async () => {
@@ -197,7 +255,7 @@ describe("Ticket system", () => {
     expect(screen.queryByText("ABC123")).not.toBeInTheDocument();
   });
 
-  it("should list statuses and hide deletion for used tickets", async () => {
+  it("should list statuses and offer deletion for used tickets", async () => {
     fetch.mockResolvedValueOnce({ ok: true, json: async () => [
       { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: false },
       { code: "DEF456", createdAt: "2026-09-14T12:00:00.000Z", used: true },
@@ -205,7 +263,7 @@ describe("Ticket system", () => {
     render(<App />);
     const used = (await screen.findByText("DEF456")).closest(".ticket");
     expect(within(used).getByText("Status: Använd")).toBeInTheDocument();
-    expect(within(used).queryByRole("button", { name: "Ta bort" })).not.toBeInTheDocument();
+    expect(within(used).getByRole("button", { name: "Ta bort" })).toBeInTheDocument();
     expect(screen.getByText("Status: Oanvänd")).toBeInTheDocument();
   });
 
