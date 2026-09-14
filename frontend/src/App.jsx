@@ -1,122 +1,138 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
+
+import * as ticketsApi from "./api/ticketsApi";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tickets, setTickets] = useState([]);
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadTickets() {
+    try {
+      const data = await ticketsApi.listTickets();
+      setTickets(data);
+    } catch {
+      setMessage("Kunde inte hämta biljetter.");
+    }
+  }
+
+  async function createTicket() {
+    try {
+      const data = await ticketsApi.createTicket();
+
+      setMessage(`Biljett skapad! Kod: ${data.code}`);
+      loadTickets();
+    } catch {
+      setMessage("Kunde inte skapa biljett.");
+    }
+  }
+
+  async function useTicket() {
+    if (!code.trim()) {
+      setMessage("Skriv in en biljettkod.");
+      return;
+    }
+
+    try {
+      const data = await ticketsApi.useTicket(code.trim().toUpperCase());
+
+      setMessage(`Biljett ${data.code} är nu använd.`);
+      setCode("");
+      loadTickets();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function deleteTicket(ticketCode) {
+    try {
+      await ticketsApi.deleteTicket(ticketCode);
+
+      setMessage(`Biljett ${ticketCode} har tagits bort.`);
+      loadTickets();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <div className="app">
+      <h1>Biljettsystem</h1>
+
+      <section className="card">
+        <h2>Skapa biljett</h2>
+
+        <button onClick={createTicket}>
+          Skapa ny biljett
         </button>
       </section>
 
-      <div className="ticks"></div>
+      <section className="card">
+        <h2>Använd biljett</h2>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <div className="input-row">
+          <input
+            type="text"
+            placeholder="Skriv biljettkod"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+
+          <button onClick={useTicket}>
+            Använd
+          </button>
         </div>
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {message && (
+        <div className="message" role="status">
+          {message}
+        </div>
+      )}
+
+      <section className="card">
+        <h2>Alla biljetter</h2>
+
+        {tickets.length === 0 ? (
+          <p>Inga biljetter finns.</p>
+        ) : (
+          <div className="tickets">
+            {tickets.map((ticket) => (
+              <div className="ticket" key={ticket.code}>
+                <div>
+                  <strong>{ticket.code}</strong>
+
+                  <p>
+                    Skapad:{" "}
+                    {new Date(ticket.createdAt).toLocaleString("sv-SE")}
+                  </p>
+
+                  <p>
+                    Status:{" "}
+                    {ticket.used ? "Använd" : "Oanvänd"}
+                  </p>
+                </div>
+
+                {!ticket.used && (
+                  <button
+                    className="delete-button"
+                    onClick={() => deleteTicket(ticket.code)}
+                  >
+                    Ta bort
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
 
-export default App
+export default App;
