@@ -1,11 +1,38 @@
 # Biljettsystem
 
-Ett enkelt biljettsystem med React, Express och SQLite. Du kan skapa biljetter,
-använda en biljett en gång, ta bort oanvända biljetter och lista deras status.
+En webbapplikation med biotema där användaren kan skapa och hantera entrébiljetter.
+Projektet innehåller en frontend byggd med React och Vite, en backend med Node.js
+och Express samt en lokal SQLite-databas som hanteras med `better-sqlite3`.
+
+## Funktioner
+
+- Skapa en biljett med en slumpmässig, sex tecken lång kod.
+- Använd en biljett genom att skriva in koden och trycka Enter eller klicka på Använd.
+- Ta bort en biljett som ännu inte har använts.
+- Lista biljetter och se deras status: gul för oanvänd och grön för använd.
+
+Backend kontrollerar att en biljett bara kan användas en gång och att använda
+biljetter inte kan raderas. Biljetterna sparas i databasen och finns kvar när
+servern startas om.
 
 ## Kom igång
 
-Installera Node.js 22.12 eller senare. Kör i två terminaler från projektets rot:
+### Förberedelser
+
+Du behöver Git, Node.js 22.12 eller senare och npm installerat.
+
+Klona projektet och gå till projektmappen:
+
+```powershell
+git clone https://github.com/HaiT02/Ticket-system.git
+cd Ticket-system
+```
+
+Om du redan har projektet på datorn öppnar du den befintliga projektmappen istället.
+
+### 1. Starta backend
+
+Kör följande från projektets rot i den första terminalen:
 
 ```powershell
 cd backend
@@ -13,28 +40,45 @@ npm install
 npm run dev
 ```
 
+Backend körs på `http://localhost:3000`. Mappen `database` och tabellen skapas
+automatiskt vid start. Ingen separat databasserver eller manuell databasinstallation behövs.
+
+### 2. Starta frontend
+
+Öppna en **ny terminal i projektets rot** och kör:
+
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Öppna adressen som Vite visar, normalt http://localhost:5173.
-API:t körs på http://localhost:3000. Databasen skapas automatiskt i
-`database/tickets.db` när backend startas.
+Öppna adressen som Vite visar i terminalen, normalt `http://localhost:5173`.
+Båda terminalerna behöver vara igång när du använder appen.
+Stoppa respektive server med `Ctrl + C`.
 
 ## Databasdesign
 
+Databasen sparas i `database/tickets.db` och innehåller en tabell: `tickets`.
+Varje rad motsvarar en biljett. Nedan visas databasdesignen som ett textdiagram.
+
 ```text
-tickets
---------------------------------------
-id          INTEGER  PRIMARY KEY
-code        TEXT     UNIQUE, NOT NULL
-created_at  TEXT     NOT NULL (ISO-datum)
-used        INTEGER  NOT NULL, DEFAULT 0
---------------------------------------
-used: 0 = oanvänd, 1 = använd
++-------------------------------------------------------+
+| tickets                                               |
++-------------+---------+-------------------------------+
+| Fält        | Typ     | Regler                        |
++-------------+---------+-------------------------------+
+| id          | INTEGER | PRIMARY KEY, AUTOINCREMENT    |
+| code        | TEXT    | UNIQUE, NOT NULL              |
+| created_at  | TEXT    | NOT NULL                      |
+| used        | INTEGER | NOT NULL, DEFAULT 0           |
++-------------+---------+-------------------------------+
 ```
+
+- `id` är biljettens interna löpnummer.
+- `code` är den unika kod som användaren anger vid entrén.
+- `created_at` lagrar datum och tid i ISO-format.
+- `used` anger status: `0` betyder oanvänd och `1` betyder använd.
 
 SQLite är en relationsdatabas. Backend använder `better-sqlite3` och
 parametriserade SQL-frågor för att läsa och uppdatera biljetter.
@@ -50,15 +94,19 @@ parametriserade SQL-frågor för att läsa och uppdatera biljetter.
 
 `frontend/src/api/ticketsApi.js` hanterar HTTP-anrop och API-fel.
 `App.jsx` hanterar gränssnitt och tillstånd. Backend separerar serverstart
-(`server.js`), Express-appen (`app.js`) och databasinitiering (`database.js`).
+(`server.js`), Express-konfiguration och felhantering (`app.js`), biljettens
+endpoints (`routes/tickets.js`) och databasinitiering (`database.js`).
 
 Frontend och backend använder olika portar och därmed olika origins.
-Backend använder `cors()` för att tillåta anrop från andra origins.
+Backend tillåter som standard origin `http://localhost:5173` via CORS.
+Använd den adressen när du öppnar frontend. Om frontend körs på en annan adress
+behöver backend startas med miljövariabeln `FRONTEND_ORIGIN` satt till den adressen.
+Frontend kan använda en annan API-adress via `VITE_API_URL` (inklusive `/api`).
 Projektet saknar inloggning: alla som når API:t kan skapa och använda biljetter
 och ta bort oanvända biljetter. Backend nekar radering av använda biljetter.
 CORS är inte behörighetskontroll.
 
-## Kontroller
+## Tester och kontroller
 
 Kör `npm test -- --run` i både `backend` och `frontend`.
 Backendtesterna använder en separat SQLite-databas i minnet och påverkar inte
@@ -66,8 +114,3 @@ sparade biljetter. Frontendtesterna simulerar API-svar och täcker skapande,
 användning, listning, radering och felhantering.
 
 Kör även `npm run lint` och `npm run build` i `frontend`.
-
-Ett konkret kodproblem var att backendtesterna tömde samma databas som appen
-använder. Lösningen är att välja `:memory:` när Vitest körs. Ett annat var att
-frontendtestet avslutades innan den asynkrona hämtningen hade behandlats;
-testerna väntar nu på resultatet med Testing Library.

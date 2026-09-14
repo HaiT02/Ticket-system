@@ -8,6 +8,36 @@ describe("Tickets API", () => {
     db.prepare("DELETE FROM tickets").run();
   });
 
+  it.each([{}, { code: null }, { code: 123456 }, { code: [] }, { code: "" }, { code: "ABC" }])(
+    "should reject invalid ticket input %j",
+    async (body) => {
+      const response = await request(app).post("/api/tickets/use").send(body);
+      expect(response.status).toBe(400);
+      expect(response.body.error).toEqual(expect.any(String));
+    }
+  );
+
+  it("should reject a missing request body", async () => {
+    const response = await request(app).post("/api/tickets/use");
+    expect(response.status).toBe(400);
+    expect(response.body.error).toEqual(expect.any(String));
+  });
+
+  it("should return JSON for malformed JSON input", async () => {
+    const response = await request(app).post("/api/tickets/use")
+      .set("Content-Type", "application/json").send('{"code":');
+    expect(response.status).toBe(400);
+    expect(response.body.error).toEqual(expect.any(String));
+  });
+
+  it("should normalize ticket codes in the API", async () => {
+    const created = await request(app).post("/api/tickets");
+    const response = await request(app).post("/api/tickets/use")
+      .send({ code: ` ${created.body.code.toLowerCase()} ` });
+    expect(response.status).toBe(200);
+    expect(response.body.used).toBe(true);
+  });
+
   it("should create a new ticket", async () => {
     const response = await request(app)
       .post("/api/tickets")
@@ -16,6 +46,29 @@ describe("Tickets API", () => {
     expect(response.status).toBe(201);
     expect(response.body).toHaveProperty("code");
     expect(response.body.code).toHaveLength(6);
+  });
+
+  it("should return JSON for unknown endpoints", async () => {
+    const response = await request(app).get("/api/unknown");
+    expect(response.status).toBe(404);
+    expect(response.body.error).toEqual(expect.any(String));
+  });
+
+  it("should reject malformed deletion codes", async () => {
+    const response = await request(app).delete("/api/tickets/abc");
+    expect(response.status).toBe(400);
+  });
+
+  it("should return 404 for a valid but missing ticket", async () => {
+    const response = await request(app).post("/api/tickets/use").send({ code: "ABC123" });
+    expect(response.status).toBe(404);
+  });
+
+  it("should allow the configured frontend origin", async () => {
+    const origin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+    const response = await request(app).options("/api/tickets/use")
+      .set("Origin", origin).set("Access-Control-Request-Method", "POST");
+    expect(response.headers["access-control-allow-origin"]).toBe(origin);
   });
 
   it("should create tickets with different codes", async () => {

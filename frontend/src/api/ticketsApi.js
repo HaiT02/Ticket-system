@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000/api";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
 
 async function request(path, options) {
   let response;
@@ -8,9 +8,14 @@ async function request(path, options) {
     throw new Error("Kunde inte ansluta till servern.");
   }
 
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Servern skickade ett ogiltigt svar. Försök igen.");
+  }
   if (!response.ok) {
-    throw new Error(data.error || "Kunde inte utföra åtgärden.");
+    throw new Error(typeof data?.error === "string" ? data.error : "Kunde inte utföra åtgärden.");
   }
   return data;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 
@@ -69,6 +69,32 @@ describe("Ticket system", () => {
     ).toBeInTheDocument();
   });
 
+  it("should prevent repeated submissions and allow retry after a network error", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("Inga biljetter finns.");
+    let rejectRequest;
+    fetch.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectRequest = reject; }));
+    const button = screen.getByRole("button", { name: "Skapa ny biljett" });
+    await user.dblClick(button);
+    expect(button).toBeDisabled();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await act(async () => { rejectRequest(new TypeError("Failed to fetch")); });
+    expect(await screen.findByText("Kunde inte skapa biljett.")).toBeInTheDocument();
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(await screen.findByText("Biljett skapad! Kod: ABC123")).toBeInTheDocument();
+  });
+
+  it("should show a readable error when the server returns non-JSON", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("Inga biljetter finns.");
+    fetch.mockResolvedValueOnce({ ok: false, json: async () => { throw new SyntaxError("Unexpected token <"); } });
+    await user.type(screen.getByLabelText("Biljettkod"), "ABC123{Enter}");
+    expect(await screen.findByText("Servern skickade ett ogiltigt svar. Försök igen.")).toBeInTheDocument();
+  });
+
   it("should create a new ticket", async () => {
     const user = userEvent.setup();
 
@@ -133,6 +159,29 @@ describe("Ticket system", () => {
         }),
       }
     );
+  });
+
+  it("should use the selected ticket directly from its card", async () => {
+    const user = userEvent.setup();
+    const ticket = { code: "DEF456", createdAt: "2026-09-14T12:00:00.000Z", used: false };
+    const usedTicket = { ...ticket, used: true };
+    fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => [ticket] })
+      .mockResolvedValueOnce({ ok: true, json: async () => usedTicket })
+      .mockResolvedValueOnce({ ok: true, json: async () => [usedTicket] });
+    render(<App />);
+    const card = (await screen.findByText("DEF456")).closest(".ticket");
+    await user.type(screen.getByLabelText("Biljettkod"), "OTHER1");
+    await user.click(within(card).getByRole("button", { name: "Använd" }));
+    expect(fetch).toHaveBeenCalledWith("http://localhost:3000/api/tickets/use", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "DEF456" }),
+    });
+    expect(await within(card).findByText("Status: Använd")).toBeInTheDocument();
+    expect(card).toHaveClass("ticket-used");
+    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Biljettkod")).toHaveValue("OTHER1");
   });
 
   it("should delete an unused ticket and refresh the list", async () => {

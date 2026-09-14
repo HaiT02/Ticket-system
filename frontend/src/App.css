@@ -10,6 +10,7 @@ h1 { font-family: Georgia, serif; font-size: clamp(40px, 7vw, 72px); font-weight
 .description { color: #c8bbc0; line-height: 1.6; margin-bottom: 22px; }
 button { padding: 12px 20px; border: 1px solid #ebc588; border-radius: 6px; background: #e5bd79; color: #21171a; font-weight: 700; transition: background .15s; }
 button:hover { background: #f4d49e; }
+button:disabled { opacity: .55; cursor: wait; }
 label { display: block; font-size: 13px; color: #d6c8c9; margin-bottom: 8px; }
 .input-row { display: flex; gap: 10px; }
 input { width: 100%; min-width: 0; flex: 1; padding: 12px; border: 1px solid #776069; border-radius: 6px; background: #151115; color: #fff4e5; letter-spacing: 1px; }
@@ -25,6 +26,9 @@ input::placeholder { color: #a999a1; letter-spacing: 0; }
 .ticket-used strong { color: #a0efbf; }
 .ticket-used .ticket-label { color: #83dca7; }
 .ticket-used p { color: #c1dfcd; }
+.ticket-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.use-button { background: #78dba2; color: #10291c; border-color: #78dba2; }
+.use-button:hover { background: #a0efbf; border-color: #a0efbf; }
 .delete-button { background: transparent; color: #f2c1bf; border-color: #875156; border-style: dashed; }
 .delete-button:hover { background: #542b33; }
 footer { text-align: center; color: #b6a4aa; padding: 12px 0 24px; font-size: 12px; letter-spacing: 1px; }

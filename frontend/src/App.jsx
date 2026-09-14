@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 import * as ticketsApi from "./api/ticketsApi";
@@ -7,59 +7,90 @@ function App() {
   const [tickets, setTickets] = useState([]);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const actionInProgress = useRef(false);
+  const loadVersion = useRef(0);
 
-  async function loadTickets() {
+  const loadTickets = useCallback(async () => {
+    const version = ++loadVersion.current;
     try {
       const data = await ticketsApi.listTickets();
-      setTickets(data);
+      if (version === loadVersion.current) setTickets(data);
     } catch {
-      setMessage("Kunde inte hämta biljetter.");
+      if (version === loadVersion.current) setMessage("Kunde inte hämta biljetter.");
+    } finally {
+      if (version === loadVersion.current) setLoading(false);
     }
-  }
+  }, []);
 
   async function createTicket() {
+    if (actionInProgress.current) return;
+    actionInProgress.current = true;
+    setBusy(true);
     try {
       const data = await ticketsApi.createTicket();
 
       setMessage(`Biljett skapad! Kod: ${data.code}`);
-      loadTickets();
+      await loadTickets();
     } catch {
       setMessage("Kunde inte skapa biljett.");
+    } finally {
+      actionInProgress.current = false;
+      setBusy(false);
     }
   }
 
   async function handleUseTicket(event) {
     event.preventDefault();
-    if (!code.trim()) {
+    await redeemTicket(code, true);
+  }
+
+  async function redeemTicket(ticketCode, clearInput = false) {
+    if (actionInProgress.current) return;
+    if (!ticketCode.trim()) {
       setMessage("Skriv in en biljettkod.");
       return;
     }
 
+    actionInProgress.current = true;
+    setBusy(true);
     try {
-      const data = await ticketsApi.useTicket(code.trim().toUpperCase());
+      const data = await ticketsApi.useTicket(ticketCode.trim().toUpperCase());
 
       setMessage(`Biljett ${data.code} är nu använd.`);
-      setCode("");
-      loadTickets();
+      if (clearInput) setCode("");
+      await loadTickets();
     } catch (error) {
       setMessage(error.message);
+    } finally {
+      actionInProgress.current = false;
+      setBusy(false);
     }
   }
 
   async function deleteTicket(ticketCode) {
+    if (actionInProgress.current) return;
+    actionInProgress.current = true;
+    setBusy(true);
     try {
       await ticketsApi.deleteTicket(ticketCode);
 
       setMessage(`Biljett ${ticketCode} har tagits bort.`);
-      loadTickets();
+      await loadTickets();
     } catch (error) {
       setMessage(error.message);
+    } finally {
+      actionInProgress.current = false;
+      setBusy(false);
     }
   }
 
   useEffect(() => {
+    const versionRef = loadVersion;
     loadTickets();
-  }, []);
+    return () => { versionRef.current++; };
+  }, [loadTickets]);
 
   return (
     <main className="app">
@@ -76,7 +107,7 @@ function App() {
         <h2>Skapa biljett</h2>
         <p className="description">Nästa filmupplevelse börjar här. Skapa en ny entrébiljett.</p>
 
-        <button onClick={createTicket}>
+        <button onClick={createTicket} disabled={busy || loading}>
           Skapa ny biljett
         </button>
       </section>
@@ -90,13 +121,14 @@ function App() {
         <div className="input-row">
           <input
             id="ticket-code"
+            disabled={busy}
             type="text"
             placeholder="Skriv biljettkod"
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
 
-          <button type="submit">
+          <button type="submit" disabled={busy || loading}>
             Använd
           </button>
         </div>
@@ -114,7 +146,7 @@ function App() {
       <section className="card">
         <h2>Alla biljetter</h2>
 
-        {tickets.length === 0 ? (
+        {loading ? <p role="status">Hämtar biljetter…</p> : tickets.length === 0 ? (
           <p>Inga biljetter finns.</p>
         ) : (
           <div className="tickets">
@@ -136,12 +168,23 @@ function App() {
                 </div>
 
                 {!ticket.used && (
+                  <div className="ticket-actions">
+                  <button
+                    type="button"
+                    className="use-button"
+                    disabled={busy}
+                    onClick={() => redeemTicket(ticket.code)}
+                  >
+                    Använd
+                  </button>
                   <button
                     className="delete-button"
+                    disabled={busy}
                     onClick={() => deleteTicket(ticket.code)}
                   >
                     Ta bort
                   </button>
+                  </div>
                 )}
               </div>
             ))}
