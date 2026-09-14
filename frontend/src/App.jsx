@@ -28,7 +28,8 @@ function App() {
     }
   }
 
-  async function useTicket() {
+  async function handleUseTicket(event) {
+    event.preventDefault();
     if (!code.trim()) {
       setMessage("Skriv in en biljettkod.");
       return;
@@ -61,11 +62,19 @@ function App() {
   }, []);
 
   return (
-    <div className="app">
-      <h1>Biljettsystem</h1>
+    <main className="app">
+      <header className="cinema-header">
+        <p className="eyebrow">Välkommen till biografen</p>
+        <h1>Biljettsystem</h1>
+        <p>En biljett. En stor filmupplevelse.</p>
+        <span className="cinema-label">BILJETTKASSA & ENTRÉ</span>
+      </header>
 
+      <div className="actions">
       <section className="card">
+        <p className="eyebrow">01 / Biljettkassan</p>
         <h2>Skapa biljett</h2>
+        <p className="description">Nästa filmupplevelse börjar här. Skapa en ny entrébiljett.</p>
 
         <button onClick={createTicket}>
           Skapa ny biljett
@@ -73,21 +82,28 @@ function App() {
       </section>
 
       <section className="card">
+        <p className="eyebrow">02 / Insläpp</p>
         <h2>Använd biljett</h2>
 
+        <form onSubmit={handleUseTicket}>
+        <label htmlFor="ticket-code">Biljettkod</label>
         <div className="input-row">
           <input
+            id="ticket-code"
             type="text"
             placeholder="Skriv biljettkod"
             value={code}
             onChange={(event) => setCode(event.target.value)}
           />
 
-          <button onClick={useTicket}>
+          <button type="submit">
             Använd
           </button>
         </div>
+        <p className="hint">Tryck Enter eller välj Använd för att lösa in biljetten.</p>
+        </form>
       </section>
+      </div>
 
       {message && (
         <div className="message" role="status">
@@ -103,8 +119,9 @@ function App() {
         ) : (
           <div className="tickets">
             {tickets.map((ticket) => (
-              <div className="ticket" key={ticket.code}>
+              <div className={`ticket${ticket.used ? " ticket-used" : ""}`} key={ticket.code}>
                 <div>
+                  <span className="ticket-label">BIO / ENTRÉ</span>
                   <strong>{ticket.code}</strong>
 
                   <p>
@@ -131,7 +148,8 @@ function App() {
           </div>
         )}
       </section>
-    </div>
+      <footer>Slå dig ner. Filmen kan börja.</footer>
+    </main>
   );
 }
 

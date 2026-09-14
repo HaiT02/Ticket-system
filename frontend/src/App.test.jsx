@@ -95,7 +95,7 @@ describe("Ticket system", () => {
     );
   });
 
-  it("should use a ticket", async () => {
+  it.each(["button", "Enter"])("should use a ticket with %s", async (method) => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -109,7 +109,11 @@ describe("Ticket system", () => {
       name: "Använd",
     });
 
-    await user.click(useButton);
+    if (method === "Enter") {
+      await user.keyboard("{Enter}");
+    } else {
+      await user.click(useButton);
+    }
 
     await waitFor(() => {
       expect(

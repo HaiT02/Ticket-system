@@ -1,10 +1,7 @@
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f4f4;
-  color: #222;
-}
+* { box-sizing: border-box; }
+:root { font-family: "Segoe UI", Arial, sans-serif; color: #f6eddd; background: #100e10; font-synthesis: none; color-scheme: dark; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(ellipse at 50% 0, #541d29 0, transparent 65%), #100e10; }
+button, input { font: inherit; min-height: 46px; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid #f3ce86; outline-offset: 4px; }
+::selection { background: #e4bc72; color: #171014; }
