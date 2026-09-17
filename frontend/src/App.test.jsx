@@ -246,7 +246,7 @@ describe("Ticket system", () => {
     const user = userEvent.setup();
     fetch.mockResolvedValueOnce({ ok: true, json: async () => [
       { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: false },
-    ] }).mockResolvedValueOnce({ ok: true, json: async () => ({ message: "Ticket deleted" }) });
+    ] }).mockResolvedValueOnce({ ok: true, json: async () => ({ message: "Biljetten har tagits bort." }) });
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Ta bort" }));
     expect(await screen.findByText("Biljett ABC123 har tagits bort.")).toBeInTheDocument();
@@ -271,18 +271,45 @@ describe("Ticket system", () => {
     const user = userEvent.setup();
     fetch.mockResolvedValueOnce({ ok: true, json: async () => [
       { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: false },
-    ] }).mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Used tickets cannot be deleted" }) });
+    ] }).mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Bekräfta borttagningen av den använda biljetten." }) });
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Ta bort" }));
-    expect(await screen.findByText("Used tickets cannot be deleted")).toBeInTheDocument();
+    expect(await screen.findByText("Bekräfta borttagningen av den använda biljetten.")).toBeInTheDocument();
     expect(screen.getByText("ABC123")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("should show a loading error when the server is unavailable", async () => {
+  it("should distinguish a loading error from an empty list and allow retry", async () => {
+    const user = userEvent.setup();
     fetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<App />);
     expect(await screen.findByText("Kunde inte hämta biljetter.")).toBeInTheDocument();
+    expect(screen.queryByText("Inga biljetter finns.")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Försök igen" }));
+    expect(await screen.findByText("Inga biljetter finns.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should preserve the created ticket confirmation when refreshing fails", async () => {
+    const user = userEvent.setup();
+    const ticket = { code: "ABC123", createdAt: "2026-09-14T12:00:00.000Z", used: false };
+    render(<App />);
+    await screen.findByText("Inga biljetter finns.");
+    fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ticket })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await user.click(screen.getByRole("button", { name: "Skapa ny biljett" }));
+    expect(await screen.findByText("Kunde inte hämta biljetter.")).toBeInTheDocument();
+    expect(screen.getByText("Biljett skapad! Kod: ABC123")).toBeInTheDocument();
+    expect(screen.queryByText("Inga biljetter finns.")).not.toBeInTheDocument();
+
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => [ticket] });
+    await user.click(screen.getByRole("button", { name: "Försök igen" }));
+    expect(await screen.findByText("ABC123")).toBeInTheDocument();
+    expect(screen.getByText("Biljett skapad! Kod: ABC123")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
   });
 
   it("should reject an empty ticket code without sending a request", async () => {

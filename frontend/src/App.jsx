@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 import * as ticketsApi from "./api/ticketsApi";
+import TicketCard from "./components/TicketCard";
 
 function App() {
   const [tickets, setTickets] = useState([]);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const actionInProgress = useRef(false);
@@ -14,11 +16,13 @@ function App() {
 
   const loadTickets = useCallback(async () => {
     const version = ++loadVersion.current;
+    setLoading(true);
+    setLoadError("");
     try {
       const data = await ticketsApi.listTickets();
       if (version === loadVersion.current) setTickets(data);
     } catch {
-      if (version === loadVersion.current) setMessage("Kunde inte hämta biljetter.");
+      if (version === loadVersion.current) setLoadError("Kunde inte hämta biljetter.");
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
@@ -178,56 +182,28 @@ function App() {
           </button>
         </div>
 
-        {loading ? <p role="status">Hämtar biljetter…</p> : tickets.length === 0 ? (
+        {loading && <p role="status">Hämtar biljetter…</p>}
+        {loadError && (
+          <div>
+            <p role="alert">{loadError}</p>
+            <button type="button" onClick={loadTickets} disabled={busy || loading}>
+              Försök igen
+            </button>
+          </div>
+        )}
+        {!loading && !loadError && tickets.length === 0 && (
           <p>Inga biljetter finns.</p>
-        ) : (
+        )}
+        {tickets.length > 0 && (
           <div className="tickets">
             {tickets.map((ticket) => (
-              <div className={`ticket${ticket.used ? " ticket-used" : ""}`} key={ticket.code}>
-                <div>
-                  <span className="ticket-label">BIO / ENTRÉ</span>
-                  <strong>{ticket.code}</strong>
-
-                  <p>
-                    Skapad:{" "}
-                    {new Date(ticket.createdAt).toLocaleString("sv-SE")}
-                  </p>
-
-                  <p>
-                    Status:{" "}
-                    {ticket.used ? "Använd" : "Oanvänd"}
-                  </p>
-                </div>
-
-                {ticket.used ? (
-                  <button
-                    type="button"
-                    className="delete-button delete-button-small"
-                    disabled={busy}
-                    onClick={() => deleteTicket(ticket.code, true)}
-                  >
-                    Ta bort
-                  </button>
-                ) : (
-                  <div className="ticket-actions">
-                  <button
-                    type="button"
-                    className="use-button"
-                    disabled={busy}
-                    onClick={() => redeemTicket(ticket.code)}
-                  >
-                    Använd
-                  </button>
-                  <button
-                    className="delete-button"
-                    disabled={busy}
-                    onClick={() => deleteTicket(ticket.code)}
-                  >
-                    Ta bort
-                  </button>
-                  </div>
-                )}
-              </div>
+              <TicketCard
+                key={ticket.code}
+                ticket={ticket}
+                disabled={busy || loading}
+                onUse={redeemTicket}
+                onDelete={deleteTicket}
+              />
             ))}
           </div>
         )}
